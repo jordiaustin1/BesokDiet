@@ -1,0 +1,295 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>BesokDiet</title>
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800;900&family=Nunito:wght@400;500;600;700;800;900&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" />
+  <link rel="stylesheet" href="css/style.css" />
+</head>
+<body class="theme-male">
+<div class="bg-glow"></div>
+
+<!-- ===== AUTH ===== -->
+<div id="authScreen">
+  <div class="auth-box">
+    <div class="auth-logo">Besok<span>Diet</span></div>
+    <div class="auth-sub">Tracker diet harian kamu</div>
+
+    <div class="auth-tabs">
+      <button class="auth-tab active" onclick="switchAuth('login')">Masuk</button>
+      <button class="auth-tab" onclick="switchAuth('register')">Daftar</button>
+    </div>
+
+    <!-- Login -->
+    <div id="loginForm">
+      <div class="field"><label>Username</label><input id="loginUser" placeholder="username kamu" autocomplete="username" /></div>
+      <div class="field"><label>Password</label><input id="loginPass" type="password" placeholder="••••••" autocomplete="current-password" /></div>
+      <button class="btn-primary" id="loginBtn" onclick="doLogin()">Masuk <i class="bi bi-arrow-right"></i></button>
+    </div>
+
+    <!-- Register -->
+    <div id="registerForm" style="display:none">
+      <div class="field"><label>Username</label><input id="regUser" placeholder="pilih username" /></div>
+      <div class="field"><label>Password</label><input id="regPass" type="password" placeholder="min 6 karakter" /></div>
+      <button class="btn-primary" id="regBtn" onclick="doRegister()">Daftar Sekarang <i class="bi bi-arrow-right"></i></button>
+    </div>
+
+    <div class="auth-err" id="authErr"></div>
+  </div>
+</div>
+
+<!-- ===== APP ===== -->
+<div id="app">
+  <div class="topbar">
+    <div class="topbar-left">
+      <h1>Besok<span>Diet</span></h1>
+      <p id="topDate"></p>
+    </div>
+    <div class="topbar-right">
+      <!-- inline theme toggle -->
+      <div class="theme-toggle">
+        <button class="theme-btn active" id="appThemeM" onclick="setTheme('male')"><i class="bi bi-lightning-charge-fill"></i></button>
+        <button class="theme-btn" id="appThemeF" onclick="setTheme('female')"><i class="bi bi-flower1"></i></button>
+      </div>
+      <button class="avatar-btn" onclick="openProfile()"><i class="bi bi-person-fill" id="avatarIcon"></i></button>
+    </div>
+  </div>
+
+  <!-- HOME -->
+  <div class="section active" id="sec-home">
+    <div class="card">
+      <div class="card-title">Kalori Hari Ini <span id="calDate" style="font-family:'DM Mono',monospace;font-weight:400;color:var(--muted)"></span></div>
+      <div class="cal-section">
+        <div class="ring-wrap">
+          <svg width="110" height="110" viewBox="0 0 100 100">
+            <circle cx="50" cy="50" r="42" fill="none" stroke="var(--border2)" stroke-width="9"/>
+            <circle id="ring1" cx="50" cy="50" r="42" fill="none" stroke="var(--accent)" stroke-width="9"
+              stroke-dasharray="264" stroke-dashoffset="264" stroke-linecap="round"
+              style="transition:stroke-dashoffset .6s ease,stroke .3s"/>
+          </svg>
+          <div class="ring-center">
+            <div class="ring-num" id="ringNum">0</div>
+            <div class="ring-lbl">kcal</div>
+          </div>
+        </div>
+        <div class="cal-stats">
+          <div class="stat-row"><span class="stat-lbl">Target</span><span class="stat-val">2.000</span></div>
+          <div class="stat-row"><span class="stat-lbl">Dikonsumsi</span><span class="stat-val" id="statCons" style="color:var(--orange)">0</span></div>
+          <div class="stat-row"><span class="stat-lbl">Sisa</span><span class="stat-val" id="statRem" style="color:var(--accent)">2.000</span></div>
+        </div>
+      </div>
+      <div class="prog"><div class="prog-bar" id="calProg" style="width:0%;background:var(--accent)"></div></div>
+    </div>
+
+    <div class="card">
+      <div class="card-title">Checklist Harian <span id="checkCnt">0/4</span></div>
+      <div id="checkList">
+        <div class="check-item" onclick="toggleCheck(0, this)"><div class="check-box"><i class="bi bi-check2"></i></div><span class="check-txt">Makan di bawah 2.000 kalori</span><i class="bi bi-cup-straw check-ico"></i></div>
+        <div class="check-item" onclick="toggleCheck(1, this)"><div class="check-box"><i class="bi bi-check2"></i></div><span class="check-txt">Olahraga hari ini</span><i class="bi bi-person-walking check-ico"></i></div>
+        <div class="check-item" onclick="toggleCheck(2, this)"><div class="check-box"><i class="bi bi-check2"></i></div><span class="check-txt">Stop ngemil</span><i class="bi bi-slash-circle check-ico"></i></div>
+        <div class="check-item" onclick="toggleCheck(3, this)"><div class="check-box"><i class="bi bi-check2"></i></div><span class="check-txt">Stop makan/minum manis</span><i class="bi bi-droplet-half check-ico"></i></div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-title">Berat Badan Hari Ini <i class="bi bi-speedometer2"></i></div>
+      <div style="display:flex;gap:8px;align-items:center">
+        <input class="form-input" id="weightToday" type="number" placeholder="Berat hari ini (kg)" step="0.1" style="flex:1"/>
+        <button class="calc-btn" style="width:auto;padding:11px 16px;margin:0;flex-shrink:0" onclick="saveWeight()">Simpan</button>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-title">Streak 7 Hari <i class="bi bi-fire"></i></div>
+      <div class="streak-grid" id="streakGrid"></div>
+    </div>
+  </div>
+
+  <!-- MAKAN -->
+  <div class="section" id="sec-makan">
+    <div class="card">
+      <div class="card-title"><i class="bi bi-search"></i> Cari Kalori Makanan</div>
+      <div class="ai-row">
+        <input class="f-input" id="aiSearch" placeholder="Ketik nama makanan... (misal: nasi goreng)" onkeydown="if(event.key==='Enter') searchFood()" />
+        <button class="add-btn" style="background:var(--blue);flex-shrink:0" onclick="searchFood()"><i class="bi bi-search"></i></button>
+      </div>
+      <div class="ai-result" id="aiResult">
+        <div class="ai-name" id="aiName"></div>
+        <div style="display:flex;align-items:baseline;gap:6px">
+          <div class="ai-kcal-est" id="aiKcalEst"></div>
+          <div style="font-size:12px;color:var(--muted)">kcal / porsi</div>
+        </div>
+        <div class="ai-sub" id="aiSub"></div>
+        <button class="ai-add-btn" onclick="addFromAI()"><i class="bi bi-plus-lg"></i> Tambah ke Log</button>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-title">Input Manual</div>
+      <div class="food-row">
+        <input class="f-input" id="foodName" placeholder="Nama makanan" />
+        <input class="f-kcal" id="foodKcal" type="number" placeholder="kcal" />
+        <button class="add-btn" onclick="addFood()"><i class="bi bi-plus-lg"></i></button>
+      </div>
+      <ul class="food-list" id="foodList"><li class="empty-state">Belum ada makanan hari ini <i class="bi bi-egg-fried"></i></li></ul>
+    </div>
+
+    <div class="card">
+      <div class="card-title">Quick Add</div>
+      <div class="quick-grid" id="quickGrid"></div>
+    </div>
+  </div>
+
+  <!-- HISTORY -->
+  <div class="section" id="sec-history">
+    <div class="card">
+      <div class="card-title">Riwayat Harian</div>
+      <div id="histList"><div class="empty-state">Belum ada history <i class="bi bi-calendar3"></i></div></div>
+    </div>
+  </div>
+
+  <!-- BMI -->
+  <div class="section" id="sec-bmi">
+    <div class="card">
+      <div class="card-title">Kalkulator BMI / IMT</div>
+      <div class="bmi-form">
+        <div style="display:flex;gap:10px">
+          <div style="flex:1"><label style="font-size:11px;color:var(--muted);font-weight:700;display:block;margin-bottom:4px;text-transform:uppercase;letter-spacing:.06em">Berat (kg)</label><input class="form-input" id="bW" type="number"/></div>
+          <div style="flex:1"><label style="font-size:11px;color:var(--muted);font-weight:700;display:block;margin-bottom:4px;text-transform:uppercase;letter-spacing:.06em">Tinggi (cm)</label><input class="form-input" id="bH" type="number"/></div>
+        </div>
+        <div style="display:flex;gap:10px">
+          <div style="flex:1"><label style="font-size:11px;color:var(--muted);font-weight:700;display:block;margin-bottom:4px;text-transform:uppercase;letter-spacing:.06em">Usia</label><input class="form-input" id="bA" type="number"/></div>
+          <div style="flex:1"><label style="font-size:11px;color:var(--muted);font-weight:700;display:block;margin-bottom:4px;text-transform:uppercase;letter-spacing:.06em">Gender</label>
+            <select class="form-input" id="bG"><option value="male">Laki-laki</option><option value="female">Perempuan</option></select>
+          </div>
+        </div>
+        <button class="calc-btn" onclick="calcBMI()"><i class="bi bi-search"></i> Hitung BMI</button>
+      </div>
+      <div class="bmi-result" id="bmiResult">
+        <div style="display:flex;align-items:baseline;gap:12px">
+          <div class="bmi-big" id="bmiNum"></div>
+          <div><div class="bmi-cat" id="bmiCat"></div><div style="font-size:11px;color:var(--muted);margin-top:2px">Indeks Massa Tubuh</div></div>
+        </div>
+        <div class="bmi-grid">
+          <div class="bmi-cell"><div class="bmi-cell-lbl">Berat Ideal</div><div class="bmi-cell-val" id="bIdeal"></div></div>
+          <div class="bmi-cell"><div class="bmi-cell-lbl">Perlu Turun</div><div class="bmi-cell-val" id="bTarget"></div></div>
+          <div class="bmi-cell"><div class="bmi-cell-lbl">Kalori/Hari</div><div class="bmi-cell-val" id="bCal"></div></div>
+          <div class="bmi-cell"><div class="bmi-cell-lbl">Est. Waktu</div><div class="bmi-cell-val" id="bTime"></div></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- MONTHLY -->
+  <div class="section" id="sec-monthly">
+    <div class="card">
+      <div class="card-title">Pilih Bulan</div>
+      <input class="form-input" type="month" id="monthPicker" onchange="loadMonthly()" />
+    </div>
+    <div id="monthlyContent"><div class="empty-state">Pilih bulan untuk lihat summary <i class="bi bi-graph-up-arrow"></i></div></div>
+  </div>
+</div>
+
+<!-- Profile Sheet -->
+<div class="profile-menu" id="profileMenu" onclick="closeProfile(event)">
+  <div class="profile-sheet">
+    <div style="display:flex;align-items:center;gap:14px;margin-bottom:20px">
+      <div style="width:50px;height:50px;border-radius:50%;background:var(--accent);display:flex;align-items:center;justify-content:center;font-size:22px;color:#000;font-weight:800" id="profileAvatar"><i class="bi bi-lightning-charge-fill"></i></div>
+      <div>
+        <div class="profile-name" id="profileNameDisp">–</div>
+        <div class="profile-info" id="profileInfoDisp">Member BesokDiet</div>
+      </div>
+    </div>
+    <div class="menu-item" onclick="closeProfile(); switchTab('bmi', document.querySelectorAll('.tab')[3])">
+      <span class="menu-item-ico"><i class="bi bi-bar-chart-fill"></i></span>Kalkulator BMI
+    </div>
+    <div class="menu-item menu-logout" onclick="doLogout()">
+      <span class="menu-item-ico"><i class="bi bi-box-arrow-right"></i></span>Keluar
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<!-- ===== BOTTOM NAVBAR ===== -->
+<nav class="bottom-nav">
+  <button class="bnav-btn active" onclick="switchTab('home', this)" data-tab="home">
+    <i class="bi bi-house-fill"></i>
+    <span>Home</span>
+  </button>
+  <button class="bnav-btn" onclick="switchTab('makan', this)" data-tab="makan">
+    <i class="bi bi-egg-fried"></i>
+    <span>Makan</span>
+  </button>
+  <button class="bnav-btn" onclick="switchTab('history', this)" data-tab="history">
+    <i class="bi bi-calendar3"></i>
+    <span>History</span>
+  </button>
+  <button class="bnav-btn" onclick="switchTab('bmi', this)" data-tab="bmi">
+    <i class="bi bi-bar-chart-fill"></i>
+    <span>BMI</span>
+  </button>
+  <button class="bnav-btn" onclick="switchTab('monthly', this)" data-tab="monthly">
+    <i class="bi bi-graph-up-arrow"></i>
+    <span>Bulanan</span>
+  </button>
+</nav>
+
+<!-- ===== SCRIPTS ===== -->
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="js/supabase.js"></script>
+<script src="js/food.js"></script>
+<script src="js/bmi.js"></script>
+<script src="js/app.js"></script>
+<script src="js/history.js"></script>
+<script src="js/auth.js"></script>
+<script>
+  // ===== THEME SWITCHER =====
+  const THEME_KEY = 'bd_theme';
+
+  function setTheme(t) {
+    document.body.className = 'theme-' + t;
+    localStorage.setItem(THEME_KEY, t);
+    // auth buttons
+    document.getElementById('themeM').classList.toggle('active', t === 'male');
+    document.getElementById('themeF').classList.toggle('active', t === 'female');
+    // app toggle
+    document.getElementById('appThemeM').classList.toggle('active', t === 'male');
+    document.getElementById('appThemeF').classList.toggle('active', t === 'female');
+    // avatar icon
+    const av = document.getElementById('profileAvatar');
+    if (av) av.innerHTML = t === 'female' ? '<i class="bi bi-flower1"></i>' : '<i class="bi bi-lightning-charge-fill"></i>';
+    const ai = document.getElementById('avatarIcon');
+    if (ai) { ai.className = t === 'female' ? 'bi bi-person-fill' : 'bi bi-person-fill'; }
+  }
+
+  // Apply saved theme on load
+  const savedTheme = localStorage.getItem(THEME_KEY) || 'male';
+  setTheme(savedTheme);
+
+  // Patch switchTab to also update bottom nav
+  const _origSwitchTab = window.switchTab;
+  window.switchTab = function(name, el) {
+    if (_origSwitchTab) _origSwitchTab(name, el);
+    // sync bottom nav
+    document.querySelectorAll('.bnav-btn').forEach(b => {
+      b.classList.toggle('active', b.dataset.tab === name);
+    });
+  };
+
+  // Show bottom nav when app becomes visible
+  const appEl = document.getElementById('app');
+  const navEl = document.querySelector('.bottom-nav');
+  const obs = new MutationObserver(() => {
+    if (appEl.style.display !== 'none' && appEl.style.display !== '') {
+      navEl.classList.add('visible');
+    } else {
+      navEl.classList.remove('visible');
+    }
+  });
+  obs.observe(appEl, { attributes: true, attributeFilter: ['style'] });
+</script>
+</body>
+</html>
