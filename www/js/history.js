@@ -8,7 +8,7 @@ async function loadHistory() {
 
   const list = document.getElementById('histList');
   if (!data || data.length === 0) {
-    list.innerHTML = '<div class="empty-state">Belum ada history 📅</div>';
+    list.innerHTML = '<div class="empty-state">Belum ada history <i class="bi bi-calendar3"></i></div>';
     return;
   }
 
@@ -17,12 +17,17 @@ async function loadHistory() {
     const checks = log.checks || [];
     const icons = ['🥗', '🏃', '🚫', '🍬'];
     return `
-      <div class="hist-day" onclick="toggleHistDetail(${i})">
-        <div class="hist-header">
+      <div class="hist-day" id="histday-${i}">
+        <div class="hist-header" onclick="toggleHistDetail(${i})">
           <span class="hist-date">${formatDateID(log.log_date)}</span>
-          <span class="hist-kcal">${total.toLocaleString('id')} kcal</span>
+          <div style="display:flex;align-items:center;gap:8px">
+            <span class="hist-kcal" id="hist-kcal-${i}">${total.toLocaleString('id')} kcal</span>
+            <button class="hist-edit-btn" onclick="event.stopPropagation();openHistEdit(${i})" title="Edit">
+              <i class="bi bi-pencil-fill"></i>
+            </button>
+          </div>
         </div>
-        <div class="hist-checks">
+        <div class="hist-checks" onclick="toggleHistDetail(${i})">
           ${checks.map((c, j) => `<span class="hist-check" style="opacity:${c ? 1 : 0.25}">${icons[j]}</span>`).join('')}
           ${log.weight_today ? `<span style="font-size:12px;color:var(--blue);margin-left:auto;font-family:'DM Mono',monospace">⚖️ ${log.weight_today}kg</span>` : ''}
         </div>
@@ -37,11 +42,103 @@ async function loadHistory() {
         </div>
       </div>`;
   }).join('');
+
+  // Store data for editing
+  window._histData = data;
 }
 
 function toggleHistDetail(i) {
   const el = document.getElementById('hd-' + i);
   el.style.display = el.style.display === 'block' ? 'none' : 'block';
+}
+
+// ===== HISTORY EDIT MODAL =====
+function openHistEdit(i) {
+  const log = window._histData[i];
+  const checks = log.checks || [false, false, false, false];
+  const icons = ['🥗 Makan sesuai target', '🏃 Olahraga', '🚫 Stop ngemil', '🍬 Stop manis'];
+
+  const modal = document.getElementById('histEditModal');
+  document.getElementById('histEditTitle').textContent = formatDateID(log.log_date);
+  document.getElementById('histEditIdx').value = i;
+
+  // Render foods
+  renderHistEditFoods(log.foods || []);
+
+  // Render checklist
+  document.getElementById('histEditChecks').innerHTML = icons.map((label, j) => `
+    <div class="check-item ${checks[j] ? 'done' : ''}" onclick="toggleHistEditCheck(${j}, this)" style="margin-bottom:8px">
+      <div class="check-box"><i class="bi bi-check2"></i></div>
+      <span class="check-txt" style="font-size:13px">${label}</span>
+    </div>`).join('');
+
+  // Weight
+  document.getElementById('histEditWeight').value = log.weight_today || '';
+
+  modal.classList.add('open');
+}
+
+function renderHistEditFoods(foods) {
+  const list = document.getElementById('histEditFoodList');
+  if (!foods.length) {
+    list.innerHTML = '<div style="font-size:12px;color:var(--muted);padding:8px 0">Belum ada makanan</div>';
+    return;
+  }
+  list.innerHTML = foods.map((f, i) => `
+    <div class="food-item" style="margin-bottom:6px">
+      <span class="food-name">${f.name}</span>
+      <span class="food-kcal">${f.kcal} kcal</span>
+      <button class="food-del" onclick="deleteHistEditFood(${i})"><i class="bi bi-x"></i></button>
+    </div>`).join('');
+}
+
+function deleteHistEditFood(idx) {
+  const i = parseInt(document.getElementById('histEditIdx').value);
+  const log = window._histData[i];
+  log.foods.splice(idx, 1);
+  renderHistEditFoods(log.foods);
+}
+
+function addHistEditFood() {
+  const name = document.getElementById('histEditFoodName').value.trim();
+  const kcal = parseInt(document.getElementById('histEditFoodKcal').value);
+  if (!name || isNaN(kcal)) { toast('⚠️ Isi nama & kalori!'); return; }
+  const i = parseInt(document.getElementById('histEditIdx').value);
+  const log = window._histData[i];
+  log.foods = log.foods || [];
+  log.foods.push({ name, kcal });
+  document.getElementById('histEditFoodName').value = '';
+  document.getElementById('histEditFoodKcal').value = '';
+  renderHistEditFoods(log.foods);
+}
+
+function toggleHistEditCheck(j, el) {
+  el.classList.toggle('done');
+  const i = parseInt(document.getElementById('histEditIdx').value);
+  const log = window._histData[i];
+  log.checks = log.checks || [false, false, false, false];
+  log.checks[j] = el.classList.contains('done');
+}
+
+async function saveHistEdit() {
+  const i = parseInt(document.getElementById('histEditIdx').value);
+  const log = window._histData[i];
+  const w = parseFloat(document.getElementById('histEditWeight').value);
+  if (w) log.weight_today = w;
+  else log.weight_today = null;
+
+  await sb.from('daily_logs').upsert(
+    { ...log, user_id: currentUser.id },
+    { onConflict: 'user_id,log_date' }
+  );
+
+  closeHistEdit();
+  toast('✅ History diperbarui!');
+  await loadHistory();
+}
+
+function closeHistEdit() {
+  document.getElementById('histEditModal').classList.remove('open');
 }
 
 // ===== MONTHLY SUMMARY =====
@@ -61,7 +158,7 @@ async function loadMonthly() {
 
   const container = document.getElementById('monthlyContent');
   if (!data || data.length === 0) {
-    container.innerHTML = '<div class="empty-state">Belum ada data bulan ini 📈</div>';
+    container.innerHTML = '<div class="empty-state">Belum ada data bulan ini <i class="bi bi-graph-up-arrow"></i></div>';
     return;
   }
 
@@ -100,7 +197,7 @@ async function loadMonthly() {
         </div>` : ''}
     </div>
     <button class="dl-btn" onclick="downloadSummary('${monthName}',${totalDays},${daysUnder},${daysEx},${daysSnack},${daysSweet},${avgKcal},'${weightChange}','${firstW}','${lastW}')">
-      Download Summary
+      <i class="bi bi-download"></i> Download Summary
     </button>`;
 }
 

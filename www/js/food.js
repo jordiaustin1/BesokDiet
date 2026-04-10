@@ -177,10 +177,13 @@ const QUICK_FOODS = [
   {name:'Nasi goreng',kcal:337},{name:'Bakso kuah',kcal:200},
 ];
 
+// Returns ALL matches for display in scrollable list
 function searchFoodDB(query) {
   const q = query.toLowerCase().trim();
   const matches = FOOD_DB.filter(f => f.name.toLowerCase().includes(q));
-  if (matches.length > 0) return { ...matches[0], fromDB: true, total: matches.length };
+  if (matches.length > 0) return { matches, fromDB: true };
+
+  // Fallback estimation
   let est = 200;
   if (q.includes('goreng')) est = 280;
   else if (q.includes('bakar') || q.includes('panggang')) est = 200;
@@ -195,5 +198,5 @@ function searchFoodDB(query) {
   else if (q.includes('roti') || q.includes('bread')) est = 160;
   else if (q.includes('daging') || q.includes('meat')) est = 250;
   else if (q.includes('ikan') || q.includes('fish')) est = 180;
-  return { name: query, kcal: est, fromDB: false };
+  return { matches: [{ name: query, kcal: est }], fromDB: false };
 }

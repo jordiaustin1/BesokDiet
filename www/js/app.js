@@ -1,7 +1,6 @@
 // ===== GLOBAL STATE =====
 let currentUser = null;
 let todayLog = null;
-let aiLastResult = null;
 let TARGET_KCAL = parseInt(localStorage.getItem('bd_target') || '2000');
 
 const TODAY = new Date().toISOString().split('T')[0];
@@ -29,6 +28,7 @@ async function enterApp() {
   document.getElementById('targetInput').value = TARGET_KCAL;
   updateTargetDisplay();
   buildQuickAdd();
+  buildQuickExercise();
   await loadTodayLog();
   await buildStreak();
   const now = new Date();
@@ -62,10 +62,13 @@ async function loadTodayLog() {
     });
     if (todayLog.weight_today) document.getElementById('weightToday').value = todayLog.weight_today;
   } else {
-    todayLog = { user_id: currentUser.id, log_date: TODAY, foods: [], checks: [false,false,false,false], weight_today: null };
+    todayLog = { user_id: currentUser.id, log_date: TODAY, foods: [], checks: [false,false,false,false], weight_today: null, exercises: [] };
     await sb.from('daily_logs').insert(todayLog);
   }
-  renderFoods(); updateCals(); updateCheckCount();
+  renderFoods();
+  updateCals();
+  updateCheckCount();
+  renderExercises();
 }
 
 async function saveLog() {
@@ -135,10 +138,12 @@ function renderFoods() {
 
 function updateCals() {
   const total = (todayLog?.foods || []).reduce((s, f) => s + f.kcal, 0);
-  const rem = Math.max(0, TARGET_KCAL - total);
-  const pct = Math.min(100, (total / TARGET_KCAL) * 100);
+  const burned = (todayLog?.exercises || []).reduce((s, e) => s + e.kcal, 0);
+  const net = Math.max(0, total - burned);
+  const rem = Math.max(0, TARGET_KCAL - net);
+  const pct = Math.min(100, (net / TARGET_KCAL) * 100);
   const color = pct > 100 ? 'var(--red)' : pct > 80 ? 'var(--orange)' : 'var(--accent)';
-  document.getElementById('ringNum').textContent = total.toLocaleString('id');
+  document.getElementById('ringNum').textContent = net.toLocaleString('id');
   document.getElementById('statCons').textContent = total.toLocaleString('id') + ' kcal';
   document.getElementById('statRem').textContent = rem.toLocaleString('id') + ' kcal';
   document.getElementById('statRem').style.color = rem > 0 ? 'var(--accent)' : 'var(--red)';
@@ -146,28 +151,60 @@ function updateCals() {
   document.getElementById('ring1').style.stroke = color;
   document.getElementById('calProg').style.width = pct + '%';
   document.getElementById('calProg').style.background = color;
+  // Update burned label if exists
+  const burnEl = document.getElementById('statBurned');
+  if (burnEl) {
+    burnEl.textContent = burned > 0 ? `-${burned.toLocaleString('id')} kcal` : '0 kcal';
+  }
 }
 
+// ===== FOOD SEARCH — shows all results in scrollable list =====
 function searchFood() {
   const q = document.getElementById('aiSearch').value.trim();
   if (!q) { toast('⚠️ Ketik nama makanan dulu!'); return; }
-  const result = searchFoodDB(q);
-  aiLastResult = result;
-  document.getElementById('aiName').textContent = result.name;
-  document.getElementById('aiKcalEst').textContent = result.kcal;
-  document.getElementById('aiSub').textContent = result.fromDB
-    ? `📦 Dari database · ${result.total} hasil ditemukan`
-    : '⚠️ Estimasi — tidak ada di database. Edit kcal jika perlu.';
-  document.getElementById('aiResult').style.display = 'block';
+
+  const { matches, fromDB } = searchFoodDB(q);
+  const resultBox = document.getElementById('aiResult');
+
+  if (!fromDB) {
+    // Single fallback result
+    window._foodResults = matches;
+    resultBox.innerHTML = `
+      <div class="ai-name">${matches[0].name}</div>
+      <div style="display:flex;align-items:baseline;gap:6px">
+        <div class="ai-kcal-est">${matches[0].kcal}</div>
+        <div style="font-size:12px;color:var(--muted)">kcal / porsi</div>
+      </div>
+      <div class="ai-sub">⚠️ Estimasi — tidak ada di database. Edit kcal jika perlu.</div>
+      <button class="ai-add-btn" onclick="addFromFoodResult(0)"><i class="bi bi-plus-lg"></i> Tambah ke Log</button>`;
+    resultBox.style.display = 'block';
+    return;
+  }
+
+  window._foodResults = matches;
+  resultBox.innerHTML = `
+    <div style="font-size:11px;font-weight:800;color:var(--muted);text-transform:uppercase;letter-spacing:.08em;margin-bottom:8px">
+      ${matches.length} hasil ditemukan
+    </div>
+    <div class="food-search-list">
+      ${matches.map((f, i) => `
+        <div class="food-search-item" onclick="addFromFoodResult(${i})">
+          <span style="flex:1;font-size:13px;font-weight:600">${f.name}</span>
+          <span style="font-family:'DM Mono',monospace;font-size:13px;color:var(--orange);font-weight:700;flex-shrink:0">${f.kcal} kcal</span>
+          <i class="bi bi-plus-circle-fill" style="color:var(--accent);font-size:16px;flex-shrink:0;margin-left:6px"></i>
+        </div>`).join('')}
+    </div>`;
+  resultBox.style.display = 'block';
 }
 
-async function addFromAI() {
-  if (!aiLastResult) return;
-  todayLog.foods.push({ name: aiLastResult.name, kcal: aiLastResult.kcal });
+async function addFromFoodResult(idx) {
+  const f = window._foodResults[idx];
+  if (!f) return;
+  todayLog.foods.push({ name: f.name, kcal: f.kcal });
   await saveLog(); renderFoods(); updateCals();
   document.getElementById('aiResult').style.display = 'none';
   document.getElementById('aiSearch').value = '';
-  toast(`✅ ${aiLastResult.name} ditambahkan!`);
+  toast(`✅ ${f.name} ditambahkan!`);
 }
 
 async function saveWeight() {
